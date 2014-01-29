@@ -3545,7 +3545,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	}
 
 	/* Migrate to the requested node */
-	migrated = migrate_misplaced_page(page, target_nid);
+	// migrated = migrate_misplaced_page(page, target_nid);
 	if (migrated)
 		page_nid = target_nid;
 

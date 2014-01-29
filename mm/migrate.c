@@ -1132,7 +1132,7 @@ static struct page *new_page_node(struct page *p, unsigned long private,
  * and the node number must contain a valid target node.
  * The pm array ends with node = MAX_NUMNODES.
  */
-static int do_move_page_to_node_array(struct mm_struct *mm,
+int do_move_page_to_node_array(struct mm_struct *mm,
 				      struct page_to_node *pm,
 				      int migrate_all)
 {
