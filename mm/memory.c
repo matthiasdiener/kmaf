@@ -59,6 +59,7 @@
 #include <linux/gfp.h>
 #include <linux/migrate.h>
 #include <linux/string.h>
+#include <linux/hashtable.h>
 
 #include <asm/io.h>
 #include <asm/pgalloc.h>
@@ -77,6 +78,15 @@ struct page *mem_map;
 EXPORT_SYMBOL(max_mapnr);
 EXPORT_SYMBOL(mem_map);
 #endif
+
+static DECLARE_HASHTABLE(spcd_mem, 22);
+
+struct mem {
+	unsigned long addr;
+	s16 sharer[2];
+	unsigned acc_n[8];
+	struct hlist_node node;
+};
 
 unsigned long num_physpages;
 /*
@@ -1687,7 +1697,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 
 	VM_BUG_ON(!!pages != !!(gup_flags & FOLL_GET));
 
-	/* 
+	/*
 	 * Require read or write permissions.
 	 * If FOLL_FORCE is set, we only require the "MAY" flags.
 	 */
@@ -3501,6 +3511,18 @@ int numa_migrate_prep(struct page *page, struct vm_area_struct *vma,
 	return mpol_misplaced(page, vma, addr);
 }
 
+static inline
+int check_name(char *name)
+{
+	int len = strlen(name);
+
+	/* Only programs whose name ends with ".x" are accepted */
+	if (name[len-2] == '.' && name[len-1] == 'x')
+		return 1;
+
+	return 0;
+}
+
 int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		   unsigned long addr, pte_t pte, pte_t *ptep, pmd_t *pmd)
 {
@@ -3542,6 +3564,9 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (target_nid == -1) {
 		put_page(page);
 		goto out;
+	}
+	if (!check_name(mm->owner->comm)) {
+		printk("page %p %d->%d\n", page, page_nid, target_nid);
 	}
 
 	/* Migrate to the requested node */
@@ -3618,6 +3643,7 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		pte_unmap_unlock(pte, ptl);
 		if (target_nid != -1) {
 			migrated = migrate_misplaced_page(page, target_nid);
+			printk("kernel migrated %p\n", page);
 			if (migrated)
 				page_nid = target_nid;
 		} else {

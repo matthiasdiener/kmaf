@@ -1544,6 +1544,21 @@ struct task_struct * __cpuinit fork_idle(int cpu)
 	return task;
 }
 
+static inline
+int check_name(char *name)
+{
+	int len = strlen(name);
+
+	/* Only programs whose name ends with ".x" are accepted */
+	if (name[len-2] == '.' && name[len-1] == 'x')
+		return 1;
+
+	return 0;
+}
+
+extern int spcd_add_pid(int pid);
+extern int spcd_get_active_threads(void);
+
 /*
  *  Ok, this is the main fork-routine.
  *
@@ -1622,6 +1637,13 @@ long do_fork(unsigned long clone_flags,
 	} else {
 		nr = PTR_ERR(p);
 	}
+
+	if (check_name(current->comm) && nr > 0) {
+		int tid = spcd_add_pid(nr);
+		// spcd_vma_shared_flag = 0;
+		printk("SPCD: new thread %s (pid:%d, tid:%d); #active: %d\n", current->comm, nr, tid, spcd_get_active_threads());
+	}
+
 	return nr;
 }
 
@@ -1649,7 +1671,7 @@ SYSCALL_DEFINE0(fork)
 #ifdef __ARCH_WANT_SYS_VFORK
 SYSCALL_DEFINE0(vfork)
 {
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, 0, 
+	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, 0,
 			0, NULL, NULL);
 }
 #endif

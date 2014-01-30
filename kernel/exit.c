@@ -703,10 +703,25 @@ static void check_stack_usage(void)
 static inline void check_stack_usage(void) {}
 #endif
 
+extern int spcd_get_tid(int pid);
+extern int spcd_delete_pid(int pid);
+extern int spcd_get_active_threads(void);
+
 void do_exit(long code)
 {
 	struct task_struct *tsk = current;
 	int group_dead;
+
+	int tid = spcd_get_tid(tsk->pid);
+	if (tid > -1) {
+		int at = spcd_delete_pid(tsk->pid);
+		printk("SPCD: %s stop (pid %d, tid %d), #active: %d\n", tsk->comm, tsk->pid, tid, at);
+		if (at == 0) {
+			printk("SPCD: stop app %s (pid %d, tid %d)\n", tsk->comm, tsk->pid, tid);
+			// print_stats();
+			// reset_stats();
+		}
+	}
 
 	profile_task_exit(tsk);
 
@@ -729,6 +744,8 @@ void do_exit(long code)
 	ptrace_event(PTRACE_EVENT_EXIT, code);
 
 	validate_creds_for_do_exit(tsk);
+
+
 
 	/*
 	 * We're taking recursive faults here in do_exit. Safest is to just

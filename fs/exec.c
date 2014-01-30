@@ -19,7 +19,7 @@
  * current->executable is only used by the procfs.  This allows a dispatch
  * table to check for several different types  of binary formats.  We keep
  * trying until we recognize the file or we run out of supported binary
- * formats. 
+ * formats.
  */
 
 #include <linux/slab.h>
@@ -1144,7 +1144,7 @@ void setup_new_exec(struct linux_binprm * bprm)
 	   group */
 
 	current->self_exec_id++;
-			
+
 	flush_signal_handlers(current, 0);
 	do_close_on_exec(current->files);
 }
@@ -1270,8 +1270,8 @@ static int check_unsafe_exec(struct linux_binprm *bprm)
 	return res;
 }
 
-/* 
- * Fill the binprm structure from the inode. 
+/*
+ * Fill the binprm structure from the inode.
  * Check permissions, then read the first 128 (BINPRM_BUF_SIZE) bytes
  *
  * This may be called multiple times for binary chains (scripts for example).
@@ -1456,6 +1456,22 @@ int search_binary_handler(struct linux_binprm *bprm)
 
 EXPORT_SYMBOL(search_binary_handler);
 
+
+extern int spcd_add_pid(int pid);
+extern int spcd_get_active_threads(void);
+
+static inline
+int check_name(char *name)
+{
+	int len = strlen(name);
+
+	/* Only programs whose name ends with ".x" are accepted */
+	if (name[len-2] == '.' && name[len-1] == 'x')
+		return 1;
+
+	return 0;
+}
+
 /*
  * sys_execve() executes a new program.
  */
@@ -1553,6 +1569,12 @@ static int do_execve_common(const char *filename,
 	current->fs->in_exec = 0;
 	current->in_execve = 0;
 	acct_update_integrals(current);
+
+	if (check_name(current->comm)) {
+		int tid = spcd_add_pid(current->pid);
+		printk("SPCD: new process %s (pid %d, tid %d); #active: %d\n", current->comm, current->pid, tid,  spcd_get_active_threads());
+	}
+
 	free_bprm(bprm);
 	if (displaced)
 		put_files_struct(displaced);
