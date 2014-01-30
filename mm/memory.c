@@ -3603,6 +3603,8 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (!numa)
 		return 0;
 
+	return 0;
+
 	/* we're in a page fault so some vma must be in the range */
 	BUG_ON(!vma);
 	BUG_ON(vma->vm_start >= _addr + PMD_SIZE);
@@ -3642,8 +3644,11 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		target_nid = numa_migrate_prep(page, vma, addr, page_nid);
 		pte_unmap_unlock(pte, ptl);
 		if (target_nid != -1) {
-			migrated = migrate_misplaced_page(page, target_nid);
-			printk("kernel migrated %p\n", page);
+			// migrated = migrate_misplaced_page(page, target_nid);
+			int tid = spcd_get_tid(current);
+			if (tid>-1) {
+				printk("pmd migrated %p\n", page);
+			}
 			if (migrated)
 				page_nid = target_nid;
 		} else {
