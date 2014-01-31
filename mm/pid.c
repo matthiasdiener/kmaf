@@ -86,10 +86,10 @@ int spcd_add_pid(int pid)
 }
 
 
-void spcd_pid_clear(void)
+void spcd_pid_init(void)
 {
-	// memset(spcd_pid, -1, sizeof(spcd_pid));
-	// memset(spcd_pid_reverse, -1, sizeof(spcd_pid_reverse));
-	// atomic_set(&spcd_num_threads, 0);
-	// atomic_set(&spcd_active_threads, 0);
+	hash_init(spcd_pid);
+	hash_init(spcd_pid_reverse);
+	atomic_set(&spcd_num_threads, 0);
+	atomic_set(&spcd_active_threads, 0);
 }

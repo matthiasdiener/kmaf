@@ -706,6 +706,7 @@ static inline void check_stack_usage(void) {}
 extern int spcd_get_tid(int pid);
 extern int spcd_delete_pid(int pid);
 extern int spcd_get_active_threads(void);
+extern void spcd_print_comm(void);
 
 void do_exit(long code)
 {
@@ -718,6 +719,7 @@ void do_exit(long code)
 		printk("SPCD: %s stop (pid %d, tid %d), #active: %d\n", tsk->comm, tsk->pid, tid, at);
 		if (at == 0) {
 			printk("SPCD: stop app %s (pid %d, tid %d)\n", tsk->comm, tsk->pid, tid);
+			spcd_print_comm();
 			// print_stats();
 			// reset_stats();
 		}

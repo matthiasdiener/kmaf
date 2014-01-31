@@ -1459,6 +1459,8 @@ EXPORT_SYMBOL(search_binary_handler);
 
 extern int spcd_add_pid(int pid);
 extern int spcd_get_active_threads(void);
+extern void spcd_mem_init(void);
+extern void spcd_pid_init(void);
 
 static inline
 int check_name(char *name)
@@ -1571,8 +1573,12 @@ static int do_execve_common(const char *filename,
 	acct_update_integrals(current);
 
 	if (check_name(current->comm)) {
+		if (spcd_get_active_threads() == 0) {
+			spcd_mem_init();
+			spcd_pid_init();
+		}
 		int tid = spcd_add_pid(current->pid);
-		printk("SPCD: new process %s (pid %d, tid %d); #active: %d\n", current->comm, current->pid, tid,  spcd_get_active_threads());
+		printk("SPCD: new process %s (pid %d, tid %d); #active: %d\n", current->comm, current->pid, tid, spcd_get_active_threads());
 	}
 
 	free_bprm(bprm);

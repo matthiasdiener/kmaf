@@ -80,16 +80,185 @@ EXPORT_SYMBOL(mem_map);
 #endif
 
 
+
+
+
+
+
+
+extern int spcd_get_tid(int pid);
+extern int spcd_get_num_threads(void);
+
+
 struct mem_s {
 	unsigned long addr;
 	s16 sharer[2];
 	unsigned acc_n[8];
-	struct hlist_node node;
 };
 
-struct mem_s mem[1024*1024];
+#define spcd_mem_hash_bits 22
 
-extern int spcd_get_tid(int pid);
+struct mem_s mem[1 << spcd_mem_hash_bits];
+unsigned matrix[1024][1024];
+
+void spcd_mem_init(void)
+{
+	memset(mem, 0, sizeof(mem));
+	memset(matrix, 0, sizeof(matrix));
+}
+
+static inline
+struct mem_s* spcd_get_mem(unsigned long address)
+{
+	return &mem[hash_32(address, spcd_mem_hash_bits)];
+}
+
+static inline
+struct mem_s* spcd_get_mem_init(unsigned long address)
+{
+	struct mem_s *elem = spcd_get_mem(address);
+	unsigned long page = address;
+
+	if (elem->addr != page) { /* new elem */
+
+		// elem->first_node = -1;
+		// elem->cur_node = -1;
+
+		elem->sharer[0] = -1;
+		elem->sharer[1] = -1;
+		memset(elem->acc_n, 0, sizeof(elem->acc_n));
+		elem->addr = page;
+	}
+
+	return elem;
+}
+
+static inline
+int get_num_sharers(struct mem_s *elem)
+{
+	if (elem->sharer[0] == -1 && elem->sharer[1] == -1)
+		return 0;
+	if (elem->sharer[0] != -1 && elem->sharer[1] != -1)
+		return 2;
+	return 1;
+}
+
+static inline
+void inc_comm(int first, int second)
+{
+	matrix[first][second]++;
+
+}
+
+static inline
+unsigned get_comm(int first, int second)
+{
+	return matrix[first][second];
+}
+
+
+void spcd_check_comm(int tid, unsigned long address)
+{
+	struct mem_s *elem = spcd_get_mem_init(address >> 12);
+	int sh = get_num_sharers(elem);
+
+	switch (sh) {
+		case 0: /* no one accessed page before, store accessing thread in pos 0 */
+			elem->sharer[0] = tid;
+			break;
+
+		case 1: /* one previous access => needs to be in pos 0 */
+			if (elem->sharer[0] != tid) {
+				inc_comm(tid, elem->sharer[0]);
+				elem->sharer[1] = elem->sharer[0];
+				elem->sharer[0] = tid;
+			}
+			break;
+
+		case 2: /* two previous accesses */
+			if (elem->sharer[0] != tid && elem->sharer[1] != tid) {
+				inc_comm(tid, elem->sharer[0]);
+				inc_comm(tid, elem->sharer[1]);
+				elem->sharer[1] = elem->sharer[0];
+				elem->sharer[0] = tid;
+			} else if (elem->sharer[0] == tid) {
+				inc_comm(tid, elem->sharer[1]);
+			} else if (elem->sharer[1] == tid) {
+				inc_comm(tid, elem->sharer[0]);
+				elem->sharer[1] = elem->sharer[0];
+				elem->sharer[0] = tid;
+			}
+
+			break;
+	}
+
+
+}
+
+int spcd_check_dm(int node, unsigned long address)
+{
+	int i, max=0, max_old=0, max_node=-1;
+	struct mem_s *elem = spcd_get_mem_init(address >> 12);
+	elem->acc_n[node]++;
+
+	for(i=0; i<num_online_nodes(); i++) {
+		printk("%d ", elem->acc_n[i]);
+		if (elem->acc_n[i] > max) {
+			max_old = max;
+			max = elem->acc_n[i];
+			max_node = i;
+		}
+	}
+	printk(" max: %d max_old:%d\n", max, max_old);
+
+	if (max > 2*(max_old+1))
+		return max_node;
+	return -1;
+}
+
+
+void spcd_print_comm(void)
+{
+	int i, j;
+	int nt = spcd_get_num_threads();
+	unsigned long sum = 0, sum_sqr = 0;
+	unsigned long av, va;
+
+	if (nt < 2)
+		return;
+
+	for (i = nt-1; i >= 0; i--) {
+		for (j = 0; j < nt; j++) {
+			int s = get_comm(i,j);
+			sum += s;
+			sum_sqr += s*s;
+			printk ("%u", s);
+			if (j != nt-1)
+				printk (",");
+		}
+		printk("\n");
+	}
+
+	av = sum / nt / nt;
+	va = (sum_sqr - ((sum*sum)/nt/nt))/(nt-1)/(nt-1);
+
+	printk ("avg: %lu, var: %lu, hf: %lu\n", av, va, av ? va/av : 0);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 unsigned long num_physpages;
@@ -3558,11 +3727,14 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		put_page(page);
 		goto out;
 	}
-	if (spcd_get_tid(mm->owner->pid) > -1) {
+
+	int new_node;
+	/* Migrate to the requested node */
+	if (spcd_get_tid(mm->owner->pid) > -1 && (new_node=spcd_check_dm(page_nid, addr)) > -1) {
 		printk("page %p %d->%d\n", page, page_nid, target_nid);
+		// migrated = migrate_misplaced_page(page, new_node);
 	}
 
-	/* Migrate to the requested node */
 	// migrated = migrate_misplaced_page(page, target_nid);
 	if (migrated)
 		page_nid = target_nid;
@@ -3685,6 +3857,11 @@ int handle_pte_fault(struct mm_struct *mm,
 {
 	pte_t entry;
 	spinlock_t *ptl;
+	int tid = spcd_get_tid(current->pid);
+	if (tid > -1) {
+		spcd_check_comm(tid, address);
+	}
+
 
 	entry = *pte;
 	if (!pte_present(entry)) {
