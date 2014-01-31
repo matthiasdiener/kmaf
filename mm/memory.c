@@ -79,14 +79,18 @@ EXPORT_SYMBOL(max_mapnr);
 EXPORT_SYMBOL(mem_map);
 #endif
 
-static DECLARE_HASHTABLE(spcd_mem, 22);
 
-struct mem {
+struct mem_s {
 	unsigned long addr;
 	s16 sharer[2];
 	unsigned acc_n[8];
 	struct hlist_node node;
 };
+
+struct mem_s mem[1024*1024];
+
+extern int spcd_get_tid(int pid);
+
 
 unsigned long num_physpages;
 /*
@@ -3511,17 +3515,6 @@ int numa_migrate_prep(struct page *page, struct vm_area_struct *vma,
 	return mpol_misplaced(page, vma, addr);
 }
 
-static inline
-int check_name(char *name)
-{
-	int len = strlen(name);
-
-	/* Only programs whose name ends with ".x" are accepted */
-	if (name[len-2] == '.' && name[len-1] == 'x')
-		return 1;
-
-	return 0;
-}
 
 int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		   unsigned long addr, pte_t pte, pte_t *ptep, pmd_t *pmd)
@@ -3565,7 +3558,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		put_page(page);
 		goto out;
 	}
-	if (!check_name(mm->owner->comm)) {
+	if (spcd_get_tid(mm->owner->pid) > -1) {
 		printk("page %p %d->%d\n", page, page_nid, target_nid);
 	}
 
@@ -3645,7 +3638,7 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		pte_unmap_unlock(pte, ptl);
 		if (target_nid != -1) {
 			// migrated = migrate_misplaced_page(page, target_nid);
-			int tid = spcd_get_tid(current);
+			int tid = spcd_get_tid(current->pid);
 			if (tid>-1) {
 				printk("pmd migrated %p\n", page);
 			}
