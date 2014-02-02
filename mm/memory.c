@@ -101,6 +101,8 @@ struct mem_s {
 
 #define spcd_mem_hash_bits 22
 
+#define spcd_shift 12
+
 struct mem_s mem[1 << spcd_mem_hash_bits];
 unsigned matrix[1024][1024];
 
@@ -157,7 +159,7 @@ unsigned get_comm(int first, int second)
 
 void spcd_check_comm(int tid, unsigned long address)
 {
-	struct mem_s *elem = spcd_get_mem_init(address >> 12);
+	struct mem_s *elem = spcd_get_mem_init(address >> spcd_shift);
 	int sh = get_num_sharers(elem);
 
 	switch (sh) {
@@ -196,10 +198,10 @@ void spcd_check_comm(int tid, unsigned long address)
 int spcd_check_dm(int node, unsigned long address)
 {
 	int i, max=0, max_old=0, max_node=-1;
-	struct mem_s *elem = spcd_get_mem_init(address >> 12);
+	struct mem_s *elem = spcd_get_mem_init(address >> spcd_shift);
 	elem->acc_n[node]++;
 
-	// printk("%lx ", address >> 12);
+	// printk("%lx ", address >> spcd_shift);
 
 	for(i=0; i<num_online_nodes(); i++) {
 		// printk("%d ", elem->acc_n[i]);
