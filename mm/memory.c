@@ -59,7 +59,10 @@
 #include <linux/gfp.h>
 #include <linux/migrate.h>
 #include <linux/string.h>
+
 #include <linux/hashtable.h>
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 
 #include <asm/io.h>
 #include <asm/pgalloc.h>
@@ -101,11 +104,6 @@ struct mem_s {
 struct mem_s mem[1 << spcd_mem_hash_bits];
 unsigned matrix[1024][1024];
 
-void spcd_mem_init(void)
-{
-	memset(mem, 0, sizeof(mem));
-	memset(matrix, 0, sizeof(matrix));
-}
 
 static inline
 struct mem_s* spcd_get_mem(unsigned long address)
@@ -201,15 +199,17 @@ int spcd_check_dm(int node, unsigned long address)
 	struct mem_s *elem = spcd_get_mem_init(address >> 12);
 	elem->acc_n[node]++;
 
+	// printk("%lx ", address >> 12);
+
 	for(i=0; i<num_online_nodes(); i++) {
-		printk("%d ", elem->acc_n[i]);
+		// printk("%d ", elem->acc_n[i]);
 		if (elem->acc_n[i] > max) {
 			max_old = max;
 			max = elem->acc_n[i];
 			max_node = i;
 		}
 	}
-	printk(" max: %d max_old:%d\n", max, max_old);
+	// printk(" max: %d max_old:%d\n", max, max_old);
 
 	if (max > 2*(max_old+1))
 		return max_node;
@@ -245,7 +245,56 @@ void spcd_print_comm(void)
 	printk ("avg: %lu, var: %lu, hf: %lu\n", av, va, av ? va/av : 0);
 }
 
+static
+int pagestats_read(struct seq_file *m, void *v)
+{
+	long i, j, pagenr=0, elements = 1UL << spcd_mem_hash_bits;
+	int num_nodes = num_online_nodes();
 
+	seq_printf(m, "nr\taddr\t");
+	for (i=0; i<num_nodes; i++)
+		seq_printf(m, "\tN%ld", i);
+	seq_printf(m, "\n");
+	// seq_printf(m, "\tcur\n");
+
+	for (i=0; i<elements; i++) {
+		if (mem[i].addr != 0) {
+			seq_printf(m, "%ld\t%10lx", pagenr++, mem[i].addr);
+			for (j=0; j<num_nodes; j++)
+				seq_printf(m, "\t%u", mem[i].acc_n[j]);
+			// seq_printf(m, "\tN%d\n", mem[i].cur_node);
+			seq_printf(m, "\n");
+		}
+	}
+
+	return 0;
+}
+
+static
+int pagestats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pagestats_read, NULL);
+}
+
+static const struct file_operations pagestats_ops = {
+	.owner = THIS_MODULE,
+	.open = pagestats_open,
+	.read = seq_read,
+	.llseek	= seq_lseek,
+	.release = single_release,
+};
+
+void spcd_mem_init(void)
+{
+	static struct proc_dir_entry *spcd_proc_root = NULL;
+	memset(mem, 0, sizeof(mem));
+	memset(matrix, 0, sizeof(matrix));
+
+	if (!spcd_proc_root) {
+		spcd_proc_root = proc_mkdir("spcd", NULL);
+		proc_create("pagestats", 0666, spcd_proc_root, &pagestats_ops);
+	}
+}
 
 
 
@@ -3720,6 +3769,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		return 0;
 	}
 
+
 	page_nid = page_to_nid(page);
 	target_nid = numa_migrate_prep(page, vma, addr, page_nid);
 	pte_unmap_unlock(ptep, ptl);
@@ -3728,11 +3778,14 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		goto out;
 	}
 
-	int new_node;
+
 	/* Migrate to the requested node */
-	if (spcd_get_tid(mm->owner->pid) > -1 && (new_node=spcd_check_dm(page_nid, addr)) > -1) {
-		printk("page %p %d->%d\n", page, page_nid, target_nid);
-		// migrated = migrate_misplaced_page(page, new_node);
+	if (spcd_get_tid(mm->owner->pid) > -1) {
+		int new_node = spcd_check_dm(page_nid, addr);
+		if (new_node != -1 && page_nid != new_node) {
+			printk("Xpage %p %d->%d (%d)\n", page, page_nid, target_nid, new_node);
+			migrated = migrate_misplaced_page(page, new_node);
+		}
 	}
 
 	// migrated = migrate_misplaced_page(page, target_nid);
