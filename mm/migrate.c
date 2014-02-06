@@ -315,6 +315,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 	void **pslot;
 
 	if (!mapping) {
+		//printk(" X "); // fails here
 		/* Anonymous page without mapping */
 		if (page_count(page) != 1)
 			return -EAGAIN;
@@ -330,6 +331,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 	if (page_count(page) != expected_count ||
 		radix_tree_deref_slot_protected(pslot, &mapping->tree_lock) != page) {
 		spin_unlock_irq(&mapping->tree_lock);
+		printk(" pagecount ");
 		return -EAGAIN;
 	}
 
@@ -517,6 +519,7 @@ int migrate_page(struct address_space *mapping,
 	BUG_ON(PageWriteback(page));	/* Writeback must be complete */
 
 	rc = migrate_page_move_mapping(mapping, newpage, page, NULL, mode);
+	// printk(" migrate_page%d ", rc); // -EAGAIN
 
 	if (rc != MIGRATEPAGE_SUCCESS)
 		return rc;
@@ -707,6 +710,8 @@ static int move_to_new_page(struct page *newpage, struct page *page,
 
 	unlock_page(newpage);
 
+	// printk(" move_to_new_page%d ", rc); // rc == -EAGAIN
+
 	return rc;
 }
 
@@ -737,7 +742,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
 		 */
 		if (current->flags & PF_MEMALLOC)
 			goto out;
-
+		printk(" lock ");
 		lock_page(page);
 	}
 
@@ -769,6 +774,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
 			rc = -EBUSY;
 			goto uncharge;
 		}
+		printk(" wb ");
 		if (!force)
 			goto uncharge;
 		wait_on_page_writeback(page);
@@ -806,6 +812,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
 			 */
 			remap_swapcache = 0;
 		} else {
+			printk(" anon ");
 			goto uncharge;
 		}
 	}
@@ -835,6 +842,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
 	 * free the metadata, so the page can be freed.
 	 */
 	if (!page->mapping) {
+		printk(" nomap ");
 		VM_BUG_ON(PageAnon(page));
 		if (page_has_private(page)) {
 			try_to_free_buffers(page);
@@ -1039,7 +1047,7 @@ int migrate_pages(struct list_head *from,
 			rc = unmap_and_move(get_new_page, private,
 						page, pass > 2, offlining,
 						mode);
-
+			// printk(" rc %d ", rc);
 			switch(rc) {
 			case -ENOMEM:
 				goto out;
@@ -1497,7 +1505,7 @@ static bool migrate_balanced_pgdat(struct pglist_data *pgdat,
 	return false;
 }
 
-static struct page *alloc_misplaced_dst_page(struct page *page,
+struct page *alloc_misplaced_dst_page(struct page *page,
 					   unsigned long data,
 					   int **result)
 {
@@ -1564,7 +1572,7 @@ bool numamigrate_update_ratelimit(pg_data_t *pgdat, unsigned long nr_pages)
 	else
 		pgdat->numabalancing_migrate_nr_pages += nr_pages;
 	spin_unlock(&pgdat->numabalancing_migrate_lock);
-	
+
 	return rate_limited;
 }
 
@@ -1628,8 +1636,8 @@ int migrate_misplaced_page(struct page *page, int node)
 	 * Optimal placement is no good if the memory bus is saturated and
 	 * all the time is being spent migrating!
 	 */
-	if (numamigrate_update_ratelimit(pgdat, 1))
-		goto out;
+	// if (numamigrate_update_ratelimit(pgdat, 1))
+	// 	goto out;
 
 	isolated = numamigrate_isolate_page(pgdat, page);
 	if (!isolated)

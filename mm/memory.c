@@ -120,6 +120,8 @@ struct mem_s* spcd_get_mem_init(unsigned long address)
 	unsigned long page = address;
 
 	if (elem->addr != page) { /* new elem */
+		if (elem->addr)
+			printk("SPCD BUG: addr conflict: old: %lx  new:%lx\n", elem->addr, page);
 
 		// elem->first_node = -1;
 		// elem->cur_node = -1;
@@ -195,15 +197,19 @@ void spcd_check_comm(int tid, unsigned long address)
 
 }
 
-int spcd_check_dm(int node, unsigned long address)
+int spcd_check_dm(unsigned long address)
 {
 	int i, max=0, max_old=0, max_node=-1;
 	struct mem_s *elem = spcd_get_mem_init(address >> spcd_shift);
-	elem->acc_n[node]++;
 
-	// printk("%lx ", address >> spcd_shift);
+	int my_node = cpu_to_node(raw_smp_processor_id());
+	int nnodes = num_online_nodes();
 
-	for(i=0; i<num_online_nodes(); i++) {
+	elem->acc_n[my_node]++;
+
+	// printk("%lx: acc from node %d\n", address >> spcd_shift, node);
+
+	for(i=0; i<nnodes; i++) {
 		// printk("%d ", elem->acc_n[i]);
 		if (elem->acc_n[i] > max) {
 			max_old = max;
@@ -216,6 +222,7 @@ int spcd_check_dm(int node, unsigned long address)
 	if (max > 2*(max_old+1))
 		return max_node;
 	return -1;
+	return max_node;
 }
 
 
@@ -3732,9 +3739,20 @@ int numa_migrate_prep(struct page *page, struct vm_area_struct *vma,
 	if (page_nid == numa_node_id())
 		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
 
-	return mpol_misplaced(page, vma, addr);
+	if (spcd_get_tid(current->pid) == -1)
+		// return mpol_misplaced(page, vma, addr);
+		return -1;
+	else {
+		int t = spcd_check_dm(addr);
+		// printk("t %d pnid %d\n", t, page_nid);
+		return t == page_nid ? -1 : t;
+	}
 }
 
+
+struct page *alloc_misplaced_dst_page(struct page *page,
+					   unsigned long data,
+					   int **result);
 
 int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		   unsigned long addr, pte_t pte, pte_t *ptep, pmd_t *pmd)
@@ -3744,6 +3762,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	int page_nid = -1;
 	int target_nid;
 	bool migrated = false;
+	// int new_node = -1;
 
 	/*
 	* The "pte" at this point cannot be used safely without
@@ -3775,6 +3794,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	page_nid = page_to_nid(page);
 	target_nid = numa_migrate_prep(page, vma, addr, page_nid);
 	pte_unmap_unlock(ptep, ptl);
+
 	if (target_nid == -1) {
 		put_page(page);
 		goto out;
@@ -3782,17 +3802,37 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 
 
 	/* Migrate to the requested node */
-	if (spcd_get_tid(mm->owner->pid) > -1) {
-		int new_node = spcd_check_dm(page_nid, addr);
-		if (new_node != -1 && page_nid != new_node) {
-			printk("Xpage %p %d->%d (%d)\n", page, page_nid, target_nid, new_node);
-			migrated = migrate_misplaced_page(page, new_node);
-		}
-	}
+	// if (spcd_get_tid(current->pid) > -1) {
+	// 	int new_node = spcd_check_dm(page_nid, addr);
+	// 	if (new_node != -1 && page_nid != new_node) {
+	// 		migrated = migrate_misplaced_page(page, target_nid);
+	// 		// LIST_HEAD(migratepages);
+	// 		// list_add(&page->lru, &migratepages);
+	// 		// int nr_remaining = migrate_pages(&migratepages,
+	// 		// 									alloc_misplaced_dst_page,
+	// 		// 									new_node, false, MIGRATE_ASYNC,
+	// 		// 									MR_NUMA_MISPLACED);
+	// 		// if (nr_remaining)
+	// 		// 	putback_lru_pages(&migratepages);
+	// 		printk("XXpage %p %d->%d (%d) %d\n", page->mapping, page_nid, target_nid, new_node, migrated);
+	// 	}
+	// } else
 
-	// migrated = migrate_misplaced_page(page, target_nid);
+	// if (spcd_get_tid(mm->owner->pid) > -1) {
+	// 	printk("%p ", page);
+	// 	new_node = spcd_check_dm(addr);
+	// 	// if (new_node>-1) {
+	// 		migrated = migrate_misplaced_page(page, target_nid);
+	// 		printk("mig %d->%d (%d) %d\n", page_nid, target_nid, new_node, migrated);
+	// 	// }
+	// }
+	migrated = migrate_misplaced_page(page, target_nid);
+	printk("mig %d->%d %d\n", page_nid, target_nid, migrated);
+
 	if (migrated)
 		page_nid = target_nid;
+
+
 
 out:
 	if (page_nid != -1)
