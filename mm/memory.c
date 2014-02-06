@@ -149,7 +149,7 @@ static inline
 void inc_comm(int first, int second)
 {
 	matrix[first][second]++;
-
+	matrix[second][first]++;
 }
 
 static inline

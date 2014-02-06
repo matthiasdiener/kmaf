@@ -1,38 +1,30 @@
-// #include "spcd.h"
-
 #include <linux/hashtable.h>
-#include <linux/slab.h>
 
 struct pid_s {
 	int pid;
 	int tid;
-	struct hlist_node node;
 };
 
-static DECLARE_HASHTABLE(spcd_pid, 12);
-static DECLARE_HASHTABLE(spcd_pid_reverse, 12);
+#define SPCD_PID_HASH_BITS 14UL
+#define SPCD_PID_HASH_SIZE (1UL << SPCD_PID_HASH_BITS)
+
+static struct pid_s spcd_pid[SPCD_PID_HASH_SIZE];
+static struct pid_s spcd_pid_reverse[SPCD_PID_HASH_SIZE];
 
 static atomic_t spcd_num_threads = ATOMIC_INIT(0);
 static atomic_t spcd_active_threads = ATOMIC_INIT(0);
 
 int spcd_get_pid(int tid)
 {
-	struct pid_s *p;
-	struct hlist_node *n;
-	hash_for_each_possible(spcd_pid_reverse, p, n, node, tid)
-		if (p->tid == tid)
-			return p->pid;
-	return -1;
+	return spcd_pid_reverse[tid].pid;
 }
 
 
 int spcd_get_tid(int pid)
 {
-	struct pid_s *p;
-	struct hlist_node *n;
-	hash_for_each_possible(spcd_pid, p, n, node, pid)
-		if (p->pid == pid)
-			return p->tid;
+	unsigned h = hash_32(pid, SPCD_PID_HASH_BITS);
+	if (spcd_pid[h].pid == pid)
+		return spcd_pid[h].tid;
 	return -1;
 }
 
@@ -51,22 +43,17 @@ int spcd_get_active_threads(void)
 
 int spcd_delete_pid(int pid)
 {
-	struct pid_s *p;
-	struct hlist_node *n;
+	int at = -1;
 
-	int tid = spcd_get_tid(pid);
+	unsigned h = hash_32(pid, SPCD_PID_HASH_BITS);
+	int tid = spcd_pid[h].tid;
 
-	int at = atomic_dec_return(&spcd_active_threads);
-
-	hash_for_each_possible(spcd_pid_reverse, p, n, node, tid)
-		if (p->tid == tid)
-			hash_del(&p->node);
-
-	hash_for_each_possible(spcd_pid, p, n, node, pid)
-		if (p->pid == pid) {
-			hash_del(&p->node);
-			kfree(p);
-		}
+	if (tid != -1 && spcd_pid[h].pid == pid) {
+		spcd_pid[h].tid = -1;
+		spcd_pid[h].pid = -1;
+		/* TODO: need to delete from spcd_pid_reverse? */
+		at = atomic_dec_return(&spcd_active_threads);
+	}
 
 	return at;
 }
@@ -74,22 +61,27 @@ int spcd_delete_pid(int pid)
 
 int spcd_add_pid(int pid)
 {
-	struct pid_s *p = kmalloc(sizeof(struct pid_s), GFP_ATOMIC);
-	p->pid = pid;
-	p->tid = atomic_inc_return(&spcd_num_threads) - 1;
-	atomic_inc_return(&spcd_active_threads);
+	unsigned h = hash_32(pid, SPCD_PID_HASH_BITS);
 
-	hash_add(spcd_pid, &p->node, pid);
-	hash_add(spcd_pid_reverse, &p->node, p->tid);
+	if (spcd_pid[h].pid == -1) {
+		spcd_pid[h].pid = pid;
+		spcd_pid[h].tid = atomic_inc_return(&spcd_num_threads) - 1;
+		atomic_inc_return(&spcd_active_threads);
 
-	return p->tid;
+		spcd_pid_reverse[spcd_pid[h].tid] = spcd_pid[h];
+
+		return spcd_pid[h].tid;
+	} else {
+		printk("SPCD BUG: XXX pid collision: %d->%d\n", spcd_pid[h].pid, spcd_pid[h].tid);
+		return -1;
+	}
 }
 
 
 void spcd_pid_init(void)
 {
-	hash_init(spcd_pid);
-	hash_init(spcd_pid_reverse);
+	memset(spcd_pid, -1, sizeof(spcd_pid));
+	memset(spcd_pid_reverse, -1, sizeof(spcd_pid_reverse));
 	atomic_set(&spcd_num_threads, 0);
 	atomic_set(&spcd_active_threads, 0);
 }
