@@ -58,6 +58,7 @@ int spcd_delete_pid(int pid)
 	return at;
 }
 
+extern void set_aff(int pid, int tid);
 
 int spcd_add_pid(int pid)
 {
@@ -69,6 +70,8 @@ int spcd_add_pid(int pid)
 		atomic_inc_return(&spcd_active_threads);
 
 		spcd_pid_reverse[spcd_pid[h].tid] = spcd_pid[h];
+
+		set_aff(pid, spcd_pid[h].tid);
 
 		return spcd_pid[h].tid;
 	} else {
