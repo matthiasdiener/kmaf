@@ -1574,11 +1574,15 @@ static int do_execve_common(const char *filename,
 
 	if (check_name(current->comm)) {
 		if (spcd_get_active_threads() == 0) {
-			spcd_mem_init();
 			spcd_pid_init();
+			int tid = spcd_add_pid(current->pid);
+			printk("SPCD: new process %s (pid %d, tid %d); #active: %d\n", current->comm, current->pid, tid, spcd_get_active_threads());
+			spcd_mem_init();
+
+		} else {
+			int tid = spcd_add_pid(current->pid);
+			printk("SPCD: new process %s (pid %d, tid %d); #active: %d\n", current->comm, current->pid, tid, spcd_get_active_threads());
 		}
-		int tid = spcd_add_pid(current->pid);
-		printk("SPCD: new process %s (pid %d, tid %d); #active: %d\n", current->comm, current->pid, tid, spcd_get_active_threads());
 	}
 
 	free_bprm(bprm);

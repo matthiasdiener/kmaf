@@ -86,9 +86,6 @@ EXPORT_SYMBOL(mem_map);
 
 
 
-
-
-
 extern int spcd_get_tid(int pid);
 extern int spcd_get_num_threads(void);
 
@@ -99,7 +96,8 @@ struct mem_s {
 	unsigned acc_n[8];
 };
 
-#define spcd_mem_hash_bits 22
+#define spcd_mem_hash_bits 23
+
 
 #define spcd_shift 12
 
