@@ -719,7 +719,7 @@ void do_exit(long code)
 		printk("SPCD: %s stop (pid %d, tid %d), #active: %d\n", tsk->comm, tsk->pid, tid, at);
 		if (at == 0) {
 			printk("SPCD: stop app %s (pid %d, tid %d)\n", tsk->comm, tsk->pid, tid);
-			spcd_print_comm();
+			// spcd_print_comm();
 			// print_stats();
 			// reset_stats();
 		}

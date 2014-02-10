@@ -94,6 +94,7 @@ struct mem_s {
 	unsigned long addr;
 	s16 sharer[2];
 	unsigned acc_n[8];
+	u16 nmig;
 };
 
 #define spcd_mem_hash_bits 23
@@ -127,6 +128,7 @@ struct mem_s* spcd_get_mem_init(unsigned long address)
 		elem->sharer[0] = -1;
 		elem->sharer[1] = -1;
 		memset(elem->acc_n, 0, sizeof(elem->acc_n));
+		elem->nmig = 0;
 		elem->addr = page;
 	}
 
@@ -217,10 +219,11 @@ int spcd_check_dm(unsigned long address)
 	}
 	// printk(" max: %d max_old:%d\n", max, max_old);
 
-	if (max > 2*(max_old+1))
+	if (max > 2*(max_old+1)) {
+		elem->nmig++;
 		return max_node;
+	}
 	return -1;
-	return max_node;
 }
 
 
@@ -261,7 +264,7 @@ int pagestats_read(struct seq_file *m, void *v)
 	seq_printf(m, "nr\taddr\t");
 	for (i=0; i<num_nodes; i++)
 		seq_printf(m, "\tN%ld", i);
-	seq_printf(m, "\n");
+	seq_printf(m, "\t#mig\n");
 	// seq_printf(m, "\tcur\n");
 
 	for (i=0; i<elements; i++) {
@@ -270,7 +273,7 @@ int pagestats_read(struct seq_file *m, void *v)
 			for (j=0; j<num_nodes; j++)
 				seq_printf(m, "\t%u", mem[i].acc_n[j]);
 			// seq_printf(m, "\tN%d\n", mem[i].cur_node);
-			seq_printf(m, "\n");
+			seq_printf(m, "\t%u\n", mem[i].nmig);
 		}
 	}
 
@@ -3950,10 +3953,10 @@ int handle_pte_fault(struct mm_struct *mm,
 {
 	pte_t entry;
 	spinlock_t *ptl;
-	int tid = spcd_get_tid(current->pid);
-	if (tid > -1) {
-		spcd_check_comm(tid, address);
-	}
+	// int tid = spcd_get_tid(current->pid);
+	// if (tid > -1) {
+	// 	spcd_check_comm(tid, address);
+	// }
 
 
 	entry = *pte;
