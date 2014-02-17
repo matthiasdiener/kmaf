@@ -200,7 +200,7 @@ void spcd_check_comm(int tid, unsigned long address)
 int spcd_check_dm(unsigned long address)
 {
 	int i, max=0, max_old=0, max_node=-1;
-	struct mem_s *elem = spcd_get_mem_init(address >> spcd_shift);
+	struct mem_s *elem = spcd_get_mem_init(address);
 
 	int my_node = cpu_to_node(raw_smp_processor_id());
 	int nnodes = num_online_nodes();
@@ -3744,7 +3744,7 @@ int numa_migrate_prep(struct page *page, struct vm_area_struct *vma,
 		// return mpol_misplaced(page, vma, addr);
 		return -1;
 	else {
-		int t = spcd_check_dm(addr);
+		int t = spcd_check_dm(page_to_pfn(page));
 		// printk("t %d pnid %d\n", t, page_nid);
 		return t == page_nid ? -1 : t;
 	}

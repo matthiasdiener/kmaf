@@ -71,7 +71,7 @@ int spcd_add_pid(int pid)
 
 		spcd_pid_reverse[spcd_pid[h].tid] = spcd_pid[h];
 
-		set_aff(pid, spcd_pid[h].tid);
+		// set_aff(pid, spcd_pid[h].tid);
 
 		return spcd_pid[h].tid;
 	} else {
