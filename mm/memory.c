@@ -83,7 +83,7 @@ EXPORT_SYMBOL(mem_map);
 #endif
 
 
-
+int do_tm = 0;
 
 
 extern int spcd_get_tid(int pid);
@@ -282,9 +282,37 @@ int pagestats_read(struct seq_file *m, void *v)
 }
 
 static
+ssize_t tm_write(struct file *file, const char __user *buffer, size_t count, loff_t *pos)
+{
+	char buf[200];
+	unsigned int v;
+
+	copy_from_user(buf, buffer, count);
+	buf[count-1] = 0;
+	kstrtouint(buf, 0,  &v);
+
+	printk("SPCD: setting tm to %u\n", v);
+	do_tm = v;
+	return count;
+}
+
+static
+int tm_read(struct seq_file *m, void *v)
+{
+	seq_printf(m, "TM: %d\n", do_tm);
+	return 0;
+}
+
+static
 int pagestats_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, pagestats_read, NULL);
+}
+
+static
+int tm_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, tm_read, NULL);
 }
 
 static const struct file_operations pagestats_ops = {
@@ -295,22 +323,33 @@ static const struct file_operations pagestats_ops = {
 	.release = single_release,
 };
 
+static const struct file_operations tm_ops = {
+	.owner = THIS_MODULE,
+	.open = tm_open,
+	.read = seq_read,
+	.llseek	= seq_lseek,
+	.write = tm_write,
+	.release = single_release,
+};
+
+
 void spcd_mem_init(void)
 {
 	static struct proc_dir_entry *spcd_proc_root = NULL;
 	if (!mem)
-		mem = vmalloc(sizeof(struct mem_s)*1 << spcd_mem_hash_bits);
-	
+		mem = vmalloc(sizeof(struct mem_s) * (1 << spcd_mem_hash_bits));
+
 	if (!mem)
 		printk("SPCD BUG, no mem");
 
-	memset(mem, 0, sizeof(mem));
+	memset(mem, 0, sizeof(struct mem_s) * (1 << spcd_mem_hash_bits));
 
 	memset(matrix, 0, sizeof(matrix));
 
 	if (!spcd_proc_root) {
 		spcd_proc_root = proc_mkdir("spcd", NULL);
 		proc_create("pagestats", 0666, spcd_proc_root, &pagestats_ops);
+		proc_create("tm", 0666, spcd_proc_root, &tm_ops);
 	}
 }
 

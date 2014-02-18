@@ -1,5 +1,7 @@
 #include <linux/hashtable.h>
 
+extern int do_tm;
+
 struct pid_s {
 	int pid;
 	int tid;
@@ -71,7 +73,8 @@ int spcd_add_pid(int pid)
 
 		spcd_pid_reverse[spcd_pid[h].tid] = spcd_pid[h];
 
-		// set_aff(pid, spcd_pid[h].tid);
+		if (do_tm)
+			set_aff(pid, spcd_pid[h].tid);
 
 		return spcd_pid[h].tid;
 	} else {
