@@ -97,12 +97,13 @@ struct mem_s {
 	u16 nmig;
 };
 
-#define spcd_mem_hash_bits 23
+#define spcd_mem_hash_bits 26
 
 
 #define spcd_shift 12
 
-struct mem_s mem[1 << spcd_mem_hash_bits];
+//struct mem_s mem[1 << spcd_mem_hash_bits];
+struct mem_s *mem = NULL;
 unsigned matrix[1024][1024];
 
 
@@ -297,7 +298,14 @@ static const struct file_operations pagestats_ops = {
 void spcd_mem_init(void)
 {
 	static struct proc_dir_entry *spcd_proc_root = NULL;
+	if (!mem)
+		mem = vmalloc(sizeof(struct mem_s)*1 << spcd_mem_hash_bits);
+	
+	if (!mem)
+		printk("SPCD BUG, no mem");
+
 	memset(mem, 0, sizeof(mem));
+
 	memset(matrix, 0, sizeof(matrix));
 
 	if (!spcd_proc_root) {
