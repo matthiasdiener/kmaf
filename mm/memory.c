@@ -97,7 +97,7 @@ struct mem_s {
 	u16 nmig;
 };
 
-#define spcd_mem_hash_bits 26
+#define spcd_mem_hash_bits 20
 
 
 #define spcd_shift 12
@@ -304,6 +304,36 @@ int tm_read(struct seq_file *m, void *v)
 }
 
 static
+int matrix_read(struct seq_file *m, void *v)
+{
+	int i, j;
+	int nt = spcd_get_num_threads();
+	unsigned long sum = 0, sum_sqr = 0;
+	unsigned long av, va;
+
+	if (nt < 2)
+		return 0;
+
+	for (i = nt-1; i >= 0; i--) {
+		for (j = 0; j < nt; j++) {
+			int s = get_comm(i,j);
+			sum += s;
+			sum_sqr += s*s;
+			seq_printf(m, "%u", s);
+			if (j != nt-1)
+				seq_printf(m, ",");
+		}
+		seq_printf(m, "\n");
+	}
+
+	av = sum / nt / nt;
+	va = (sum_sqr - ((sum*sum)/nt/nt))/(nt-1)/(nt-1);
+
+	seq_printf(m, "avg: %lu, var: %lu, hf: %lu\n", av, va, av ? va/av : 0);
+	return 0;
+}
+
+static
 int pagestats_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, pagestats_read, NULL);
@@ -313,6 +343,12 @@ static
 int tm_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, tm_read, NULL);
+}
+
+static
+int matrix_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, matrix_read, NULL);
 }
 
 static const struct file_operations pagestats_ops = {
@@ -332,6 +368,14 @@ static const struct file_operations tm_ops = {
 	.release = single_release,
 };
 
+static const struct file_operations matrix_ops = {
+	.owner = THIS_MODULE,
+	.open = matrix_open,
+	.read = seq_read,
+	.llseek	= seq_lseek,
+	.release = single_release,
+};
+
 
 void spcd_mem_init(void)
 {
@@ -341,8 +385,8 @@ void spcd_mem_init(void)
 
 	if (!mem)
 		printk("SPCD BUG, no mem");
-
-	memset(mem, 0, sizeof(struct mem_s) * (1 << spcd_mem_hash_bits));
+	else
+		memset(mem, 0, sizeof(struct mem_s) * (1 << spcd_mem_hash_bits));
 
 	memset(matrix, 0, sizeof(matrix));
 
@@ -350,6 +394,7 @@ void spcd_mem_init(void)
 		spcd_proc_root = proc_mkdir("spcd", NULL);
 		proc_create("pagestats", 0666, spcd_proc_root, &pagestats_ops);
 		proc_create("tm", 0666, spcd_proc_root, &tm_ops);
+		proc_create("matrix", 0666, spcd_proc_root, &matrix_ops);
 	}
 }
 
@@ -4000,10 +4045,10 @@ int handle_pte_fault(struct mm_struct *mm,
 {
 	pte_t entry;
 	spinlock_t *ptl;
-	// int tid = spcd_get_tid(current->pid);
-	// if (tid > -1) {
-	// 	spcd_check_comm(tid, address);
-	// }
+	int tid = spcd_get_tid(current->pid);
+	if (tid > -1) {
+		spcd_check_comm(tid, address);
+	}
 
 
 	entry = *pte;

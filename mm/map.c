@@ -13,7 +13,7 @@ static const int turing_len = sizeof(turing_vec)/sizeof(turing_vec[0]);
 
 void set_aff(int pid, int tid);
 int spcd_get_active_threads(void);
-extern unsigned *matrix;
+extern unsigned matrix[MAX_THREADS][MAX_THREADS];
 
 #define for_each_sibling(s, cpu) for_each_cpu(s, cpu_sibling_mask(cpu))
 #define for_each_core(s, cpu) for_each_cpu(s, cpu_core_mask(cpu))
@@ -101,7 +101,7 @@ int spcd_map_func(void* v)
 	libmapping_topology_print(topo);
 
 	libmapping_mapping_algorithm_greedy_init(&data);
-
+	// printk("MATRIX::::::::::::::: %p\n", matrix);
 	while (1) {
 		if (kthread_should_stop())
 			break;
@@ -114,6 +114,7 @@ int spcd_map_func(void* v)
 
 			spcd_matrix.matrix = matrix;
 			spcd_matrix.nthreads = nt;
+
 			libmapping_mapping_algorithm_greedy_map (&mapdata);
 			printk("MAP \"");
 			for (i=0; i<nt; i++){
@@ -153,5 +154,5 @@ void set_aff(int pid, int tid)
 	cpumask_set_cpu(core, &mask);
 
 	sched_setaffinity(pid, &mask);
-	printk("map tid %d to core %d\n", tid, core);
+	// printk("map tid %d to core %d\n", tid, core);
 }
