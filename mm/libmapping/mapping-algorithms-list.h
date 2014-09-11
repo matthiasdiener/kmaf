@@ -1,0 +1,18 @@
+
+// the first in the list is the default
+
+LM_TMAP(greedy, libmapping_mapping_algorithm_greedy_init, libmapping_mapping_algorithm_greedy_map, libmapping_mapping_algorithm_greedy_destroy)
+
+LM_TMAP(greedy_cluster, libmapping_mapping_algorithm_greedy_cluster_init, libmapping_mapping_algorithm_greedy_cluster_map, libmapping_mapping_algorithm_greedy_cluster_destroy)
+
+LM_TMAP(greedyopt, libmapping_mapping_algorithm_greedyopt_init, libmapping_mapping_algorithm_greedyopt_map, libmapping_mapping_algorithm_greedyopt_destroy)
+
+LM_TMAP(greedylb, libmapping_mapping_algorithm_greedy_lb_init, libmapping_mapping_algorithm_greedy_lb_map, libmapping_mapping_algorithm_greedy_lb_destroy)
+
+#ifdef LIBMAPPING_SUPPORT_TREEMATCH
+LM_TMAP(treematch, libmapping_mapping_algorithm_treematch_init, libmapping_mapping_algorithm_treematch_map, libmapping_mapping_algorithm_treematch_destroy)
+#endif
+
+#ifdef LIBMAPPING_SUPPORT_SCOTCH
+LM_TMAP(scotch, libmapping_mapping_algorithm_scotch_init, libmapping_mapping_algorithm_scotch_map, libmapping_mapping_algorithm_scotch_destroy)
+#endif

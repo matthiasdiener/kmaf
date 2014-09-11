@@ -5,7 +5,8 @@
 mmu-y			:= nommu.o
 mmu-$(CONFIG_MMU)	:= fremap.o highmem.o madvise.o memory.o mincore.o \
 			   mlock.o mmap.o mprotect.o mremap.o msync.o rmap.o \
-			   vmalloc.o pagewalk.o pgtable-generic.o pid.o map.o
+			   vmalloc.o pagewalk.o pgtable-generic.o pid.o map.o \
+			   libmapping/mapping-greedy.o libmapping/topology.o libmapping/lib.o libmapping/graph.o
 
 ifdef CONFIG_CROSS_MEMORY_ATTACH
 mmu-$(CONFIG_MMU)	+= process_vm_access.o

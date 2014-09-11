@@ -67,6 +67,7 @@
 #include "coredump.h"
 
 #include <trace/events/sched.h>
+#include <linux/kthread.h>
 
 int suid_dumpable = 0;
 
@@ -1474,6 +1475,9 @@ int check_name(char *name)
 	return 0;
 }
 
+static struct task_struct *spcd_map_thread;
+extern int spcd_map_func(void* v);
+
 /*
  * sys_execve() executes a new program.
  */
@@ -1579,6 +1583,8 @@ static int do_execve_common(const char *filename,
 			tid = spcd_add_pid(current->pid);
 			printk("SPCD: new process %s (pid %d, tid %d); #active: %d\n", current->comm, current->pid, tid, spcd_get_active_threads());
 			spcd_mem_init();
+			if (!spcd_map_thread)
+				spcd_map_thread = kthread_run(spcd_map_func, NULL, "spcd_map_thread");
 
 		} else {
 			tid = spcd_add_pid(current->pid);

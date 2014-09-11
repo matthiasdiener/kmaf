@@ -84,7 +84,7 @@ EXPORT_SYMBOL(mem_map);
 
 
 int do_tm = 0;
-
+#include "libmapping/libmapping.h"
 
 extern int spcd_get_tid(int pid);
 extern int spcd_get_num_threads(void);
@@ -104,7 +104,7 @@ struct mem_s {
 
 //struct mem_s mem[1 << spcd_mem_hash_bits];
 struct mem_s *mem = NULL;
-unsigned matrix[1024][1024];
+unsigned matrix[MAX_THREADS][MAX_THREADS];
 
 
 static inline
