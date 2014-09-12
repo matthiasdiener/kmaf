@@ -104,7 +104,7 @@ struct mem_s {
 
 //struct mem_s mem[1 << spcd_mem_hash_bits];
 struct mem_s *mem = NULL;
-unsigned matrix[MAX_THREADS][MAX_THREADS];
+unsigned int matrix[MAX_THREADS*MAX_THREADS];
 
 
 static inline
@@ -149,14 +149,21 @@ int get_num_sharers(struct mem_s *elem)
 static inline
 void inc_comm(int first, int second)
 {
-	matrix[first][second]++;
-	matrix[second][first]++;
+	static int max_threads_bits = ilog2(MAX_THREADS);
+	if (first > second)
+		matrix[(first << max_threads_bits) + second] ++;
+	else
+		matrix[(second << max_threads_bits) + first] ++;
 }
 
 static inline
 unsigned get_comm(int first, int second)
 {
-	return matrix[first][second];
+	static int max_threads_bits = ilog2(MAX_THREADS);
+	if (first > second)
+		return matrix[(first << max_threads_bits) + second];
+	else
+		return matrix[(second << max_threads_bits) + first];
 }
 
 

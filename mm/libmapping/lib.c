@@ -40,6 +40,7 @@ void libmapping_matrix_free (void *m)
 
 void libmapping_comm_matrix_init (comm_matrix_t *m, uint32_t nthreads)
 {
+	m->matrix = (unsigned*) kmalloc (sizeof(unsigned) * nthreads * nthreads, GFP_KERNEL);
 	m->nthreads = nthreads;
 }
 

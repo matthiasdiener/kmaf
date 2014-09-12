@@ -31,25 +31,26 @@ struct spcd_comm_matrix {
 };
 
 typedef struct spcd_comm_matrix comm_matrix_t;
-// static int max_threads_bits = ilog2(MAX_THREADS);
+static int max_threads_bits = ilog2(MAX_THREADS);
 
 static inline
 unsigned get_matrix(struct spcd_comm_matrix *m, int i, int j)
 {
 	// return i > j ? m->matrix[(i<<max_threads_bits) + j] : m->matrix[(j<<max_threads_bits) + i];
+	return i > j ? m->matrix[(i<<max_threads_bits) + j] : m->matrix[(j<<max_threads_bits) + i];
 	// printk("%p %d, %d\n", m->matrix, i, j);
-	return m->matrix[i*MAX_THREADS+j];
+	// return m->matrix[i*MAX_THREADS+j];
 }
 
 static inline
 void set_matrix(struct spcd_comm_matrix *m, int i, int j, unsigned v)
 {
-	m->matrix[i*MAX_THREADS+j] = v;
-	m->matrix[j*MAX_THREADS+i] = v;
-	// if (i > j)
-	// 	m->matrix[(i << max_threads_bits) + j] = v;
-	// else
-	// 	m->matrix[(j << max_threads_bits) + i] = v;
+	// m->matrix[i*MAX_THREADS+j] = v;
+	// m->matrix[j*MAX_THREADS+i] = v;
+	if (i > j)
+		m->matrix[(i << max_threads_bits) + j] = v;
+	else
+		m->matrix[(j << max_threads_bits) + i] = v;
 }
 
 #define comm_matrix_el(m, row, col) get_matrix(&(m), row, col)

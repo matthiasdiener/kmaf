@@ -13,7 +13,7 @@ static const int turing_len = sizeof(turing_vec)/sizeof(turing_vec[0]);
 
 void set_aff(int pid, int tid);
 int spcd_get_active_threads(void);
-extern unsigned matrix[MAX_THREADS][MAX_THREADS];
+extern unsigned matrix[MAX_THREADS*MAX_THREADS];
 
 #define for_each_sibling(s, cpu) for_each_cpu(s, cpu_sibling_mask(cpu))
 #define for_each_core(s, cpu) for_each_cpu(s, cpu_core_mask(cpu))
