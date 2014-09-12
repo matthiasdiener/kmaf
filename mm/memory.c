@@ -97,7 +97,7 @@ struct mem_s {
 	u16 nmig;
 };
 
-#define spcd_mem_hash_bits 20
+#define spcd_mem_hash_bits 26
 
 
 #define spcd_shift 12
