@@ -70,8 +70,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 						all_same_node = false;
 
 					/* only check non-shared pages */
-					if (!pte_numa(oldpte) &&
-					    page_mapcount(page) == 1) {
+					if (!pte_numa(oldpte)) { // ??? kMAF
 						ptent = pte_mknuma(ptent);
 						updated = true;
 					}
