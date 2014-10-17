@@ -703,23 +703,23 @@ static void check_stack_usage(void)
 static inline void check_stack_usage(void) {}
 #endif
 
-extern int spcd_get_tid(int pid);
-extern int spcd_delete_pid(int pid);
-extern int spcd_get_active_threads(void);
-extern void spcd_print_comm(void);
+extern int kmaf_get_tid(int pid);
+extern int kmaf_delete_pid(int pid);
+extern int kmaf_get_active_threads(void);
+extern void kmaf_print_comm(void);
 
 void do_exit(long code)
 {
 	struct task_struct *tsk = current;
 	int group_dead;
 
-	int tid = spcd_get_tid(tsk->pid);
+	int tid = kmaf_get_tid(tsk->pid);
 	if (tid > -1) {
-		int at = spcd_delete_pid(tsk->pid);
-		printk("SPCD: %s stop (pid %d, tid %d), #active: %d\n", tsk->comm, tsk->pid, tid, at);
+		int at = kmaf_delete_pid(tsk->pid);
+		printk("kmaf: %s stop (pid %d, tid %d), #active: %d\n", tsk->comm, tsk->pid, tid, at);
 		if (at == 0) {
-			printk("SPCD: stop app %s (pid %d, tid %d)\n", tsk->comm, tsk->pid, tid);
-			// spcd_print_comm();
+			printk("kmaf: stop app %s (pid %d, tid %d)\n", tsk->comm, tsk->pid, tid);
+			// kmaf_print_comm();
 			// print_stats();
 			// reset_stats();
 		}

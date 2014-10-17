@@ -47,7 +47,7 @@ void libmapping_comm_matrix_init (comm_matrix_t *m, uint32_t nthreads)
 
 void libmapping_comm_matrix_destroy (comm_matrix_t *m)
 {
-#ifdef _SPCD
+#ifdef _kmaf
 	kfree(m->matrix);
 #endif
 }

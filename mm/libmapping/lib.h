@@ -24,17 +24,17 @@
 	#define dprintf(...)
 #endif
 
-struct spcd_comm_matrix {
+struct kmaf_comm_matrix {
 	unsigned *matrix;
 	spinlock_t lock;
 	uint32_t nthreads;
 };
 
-typedef struct spcd_comm_matrix comm_matrix_t;
+typedef struct kmaf_comm_matrix comm_matrix_t;
 static int max_threads_bits = ilog2(MAX_THREADS);
 
 static inline
-unsigned get_matrix(struct spcd_comm_matrix *m, int i, int j)
+unsigned get_matrix(struct kmaf_comm_matrix *m, int i, int j)
 {
 	// return i > j ? m->matrix[(i<<max_threads_bits) + j] : m->matrix[(j<<max_threads_bits) + i];
 	return i > j ? m->matrix[(i<<max_threads_bits) + j] : m->matrix[(j<<max_threads_bits) + i];
@@ -43,7 +43,7 @@ unsigned get_matrix(struct spcd_comm_matrix *m, int i, int j)
 }
 
 static inline
-void set_matrix(struct spcd_comm_matrix *m, int i, int j, unsigned v)
+void set_matrix(struct kmaf_comm_matrix *m, int i, int j, unsigned v)
 {
 	// m->matrix[i*MAX_THREADS+j] = v;
 	// m->matrix[j*MAX_THREADS+i] = v;

@@ -241,7 +241,7 @@ void* libmapping_mapping_algorithm_greedy_init (thread_map_alg_init_t *data)
 
 	groups = libmapping_matrix_malloc(levels_n, MAX_THREADS, sizeof(thread_group_t));
 
-#ifndef _SPCD
+#ifndef _kmaf
 	libmapping_comm_matrix_init(&matrix_[0], MAX_THREADS);
 	libmapping_comm_matrix_init(&matrix_[1], MAX_THREADS);
 #else

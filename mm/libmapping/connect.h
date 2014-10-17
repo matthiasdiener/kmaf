@@ -1,7 +1,7 @@
 #ifndef __LIBMAPPING_CONNECT_H__
 #define __LIBMAPPING_CONNECT_H__
 
-#ifndef _SPCD
+#ifndef _kmaf
 	void libmapping_panic(int code);
 #else
 	#define libmapping_panic(var)

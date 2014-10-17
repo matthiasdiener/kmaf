@@ -12,7 +12,7 @@ static int turing_vec[] = {0,32,4,36,8,40,12,44,16,48,20,52,24,56,28,60,1,33,5,3
 static const int turing_len = sizeof(turing_vec)/sizeof(turing_vec[0]);
 
 void set_aff(int pid, int tid);
-int spcd_get_active_threads(void);
+int kmaf_get_active_threads(void);
 extern unsigned matrix[MAX_THREADS*MAX_THREADS];
 
 #define for_each_sibling(s, cpu) for_each_cpu(s, cpu_sibling_mask(cpu))
@@ -28,7 +28,7 @@ void topo_init(void)
 	int index = 0, i;
 	char seen[256] = {};
 
-	printk("SPCD: detected hardware topology:\n");
+	printk("kmaf: detected hardware topology:\n");
 
 	for_each_online_node(node) {
 		printk("  node: %d\n", node);
@@ -68,13 +68,13 @@ void topo_init(void)
 	num_cores /= num_cpus;
 	num_cpus /= num_nodes;
 
-	printk("\nSPCD: %d nodes, %d processors per node, %d cores per processor, %d threads per core\n", num_nodes, num_cpus, num_cores, num_threads);
+	printk("\nkmaf: %d nodes, %d processors per node, %d cores per processor, %d threads per core\n", num_nodes, num_cpus, num_cores, num_threads);
 }
 
-int spcd_map_func(void* v)
+int kmaf_map_func(void* v)
 {
 	topo_init();
-	struct spcd_comm_matrix spcd_matrix = {.matrix = NULL, .nthreads = 0};
+	struct kmaf_comm_matrix kmaf_matrix = {.matrix = NULL, .nthreads = 0};
 
 	int nt, i;
 	int arities[] = {num_nodes, num_cpus, num_cores, num_threads};
@@ -106,14 +106,14 @@ int spcd_map_func(void* v)
 		if (kthread_should_stop())
 			break;
 
-		nt = spcd_get_active_threads();
+		nt = kmaf_get_active_threads();
 		if (nt >= 4) {
 			thread_map_alg_map_t mapdata;
-			mapdata.m_init = &spcd_matrix;
+			mapdata.m_init = &kmaf_matrix;
 			mapdata.map = map;
 
-			spcd_matrix.matrix = matrix;
-			spcd_matrix.nthreads = nt;
+			kmaf_matrix.matrix = matrix;
+			kmaf_matrix.nthreads = nt;
 
 			libmapping_mapping_algorithm_greedy_map (&mapdata);
 			printk("MAP \"");

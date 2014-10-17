@@ -1458,10 +1458,10 @@ int search_binary_handler(struct linux_binprm *bprm)
 EXPORT_SYMBOL(search_binary_handler);
 
 
-extern int spcd_add_pid(int pid);
-extern int spcd_get_active_threads(void);
-extern void spcd_mem_init(void);
-extern void spcd_pid_init(void);
+extern int kmaf_add_pid(int pid);
+extern int kmaf_get_active_threads(void);
+extern void kmaf_mem_init(void);
+extern void kmaf_pid_init(void);
 
 static inline
 int check_name(char *name)
@@ -1475,8 +1475,8 @@ int check_name(char *name)
 	return 0;
 }
 
-static struct task_struct *spcd_map_thread;
-extern int spcd_map_func(void* v);
+static struct task_struct *kmaf_map_thread;
+extern int kmaf_map_func(void* v);
 
 /*
  * sys_execve() executes a new program.
@@ -1578,17 +1578,17 @@ static int do_execve_common(const char *filename,
 
 	if (check_name(current->comm)) {
 		int tid;
-		if (spcd_get_active_threads() == 0) {
-			spcd_pid_init();
-			tid = spcd_add_pid(current->pid);
-			printk("SPCD: new process %s (pid %d, tid %d); #active: %d\n", current->comm, current->pid, tid, spcd_get_active_threads());
-			spcd_mem_init();
-			if (!spcd_map_thread)
-				spcd_map_thread = kthread_run(spcd_map_func, NULL, "spcd_map_thread");
+		if (kmaf_get_active_threads() == 0) {
+			kmaf_pid_init();
+			tid = kmaf_add_pid(current->pid);
+			printk("kmaf: new process %s (pid %d, tid %d); #active: %d\n", current->comm, current->pid, tid, kmaf_get_active_threads());
+			kmaf_mem_init();
+			if (!kmaf_map_thread)
+				kmaf_map_thread = kthread_run(kmaf_map_func, NULL, "kmaf_map_thread");
 
 		} else {
-			tid = spcd_add_pid(current->pid);
-			printk("SPCD: new process %s (pid %d, tid %d); #active: %d\n", current->comm, current->pid, tid, spcd_get_active_threads());
+			tid = kmaf_add_pid(current->pid);
+			printk("kmaf: new process %s (pid %d, tid %d); #active: %d\n", current->comm, current->pid, tid, kmaf_get_active_threads());
 		}
 	}
 

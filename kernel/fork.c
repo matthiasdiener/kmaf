@@ -1556,8 +1556,8 @@ int check_name(char *name)
 	return 0;
 }
 
-extern int spcd_add_pid(int pid);
-extern int spcd_get_active_threads(void);
+extern int kmaf_add_pid(int pid);
+extern int kmaf_get_active_threads(void);
 
 /*
  *  Ok, this is the main fork-routine.
@@ -1639,9 +1639,9 @@ long do_fork(unsigned long clone_flags,
 	}
 
 	if (check_name(current->comm) && nr > 0) {
-		int tid = spcd_add_pid(nr);
-		// spcd_vma_shared_flag = 0;
-		printk("SPCD: new thread %s (pid:%d, tid:%d); #active: %d\n", current->comm, nr, tid, spcd_get_active_threads());
+		int tid = kmaf_add_pid(nr);
+		// kmaf_vma_shared_flag = 0;
+		printk("kmaf: new thread %s (pid:%ld, tid:%d); #active: %d\n", current->comm, nr, tid, kmaf_get_active_threads());
 	}
 
 	return nr;

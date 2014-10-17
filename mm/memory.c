@@ -86,8 +86,8 @@ EXPORT_SYMBOL(mem_map);
 int do_tm = 0;
 #include "libmapping/libmapping.h"
 
-extern int spcd_get_tid(int pid);
-extern int spcd_get_num_threads(void);
+extern int kmaf_get_tid(int pid);
+extern int kmaf_get_num_threads(void);
 
 
 struct mem_s {
@@ -97,31 +97,31 @@ struct mem_s {
 	u16 nmig;
 };
 
-#define spcd_mem_hash_bits 26
+#define kmaf_mem_hash_bits 26
 
 
-#define spcd_shift 12
+#define kmaf_shift 12
 
-//struct mem_s mem[1 << spcd_mem_hash_bits];
+//struct mem_s mem[1 << kmaf_mem_hash_bits];
 struct mem_s *mem = NULL;
 unsigned int matrix[MAX_THREADS*MAX_THREADS];
 
 
 static inline
-struct mem_s* spcd_get_mem(unsigned long address)
+struct mem_s* kmaf_get_mem(unsigned long address)
 {
-	return &mem[hash_32(address, spcd_mem_hash_bits)];
+	return &mem[hash_32(address, kmaf_mem_hash_bits)];
 }
 
 static inline
-struct mem_s* spcd_get_mem_init(unsigned long address)
+struct mem_s* kmaf_get_mem_init(unsigned long address)
 {
-	struct mem_s *elem = spcd_get_mem(address);
+	struct mem_s *elem = kmaf_get_mem(address);
 	unsigned long page = address;
 
 	if (elem->addr != page) { /* new elem */
 		if (elem->addr)
-			printk("SPCD BUG: addr conflict: old: %lx  new:%lx\n", elem->addr, page);
+			printk("kmaf BUG: addr conflict: old: %lx  new:%lx\n", elem->addr, page);
 
 		// elem->first_node = -1;
 		// elem->cur_node = -1;
@@ -167,9 +167,9 @@ unsigned get_comm(int first, int second)
 }
 
 
-void spcd_check_comm(int tid, unsigned long address)
+void kmaf_check_comm(int tid, unsigned long address)
 {
-	struct mem_s *elem = spcd_get_mem_init(address >> spcd_shift);
+	struct mem_s *elem = kmaf_get_mem_init(address >> kmaf_shift);
 	int sh = get_num_sharers(elem);
 
 	switch (sh) {
@@ -205,17 +205,17 @@ void spcd_check_comm(int tid, unsigned long address)
 
 }
 
-int spcd_check_dm(unsigned long address)
+int kmaf_check_dm(unsigned long address)
 {
 	int i, max=0, max_old=0, max_node=-1;
-	struct mem_s *elem = spcd_get_mem_init(address);
+	struct mem_s *elem = kmaf_get_mem_init(address);
 
 	int my_node = cpu_to_node(raw_smp_processor_id());
 	int nnodes = num_online_nodes();
 
 	elem->acc_n[my_node]++;
 
-	// printk("%lx: acc from node %d\n", address >> spcd_shift, node);
+	// printk("%lx: acc from node %d\n", address >> kmaf_shift, node);
 
 	for(i=0; i<nnodes; i++) {
 		// printk("%d ", elem->acc_n[i]);
@@ -235,10 +235,10 @@ int spcd_check_dm(unsigned long address)
 }
 
 
-void spcd_print_comm(void)
+void kmaf_print_comm(void)
 {
 	int i, j;
-	int nt = spcd_get_num_threads();
+	int nt = kmaf_get_num_threads();
 	unsigned long sum = 0, sum_sqr = 0;
 	unsigned long av, va;
 
@@ -266,7 +266,7 @@ void spcd_print_comm(void)
 static
 int pagestats_read(struct seq_file *m, void *v)
 {
-	long i, j, pagenr=0, elements = 1UL << spcd_mem_hash_bits;
+	long i, j, pagenr=0, elements = 1UL << kmaf_mem_hash_bits;
 	int num_nodes = num_online_nodes();
 
 	seq_printf(m, "nr\taddr\t");
@@ -298,7 +298,7 @@ ssize_t tm_write(struct file *file, const char __user *buffer, size_t count, lof
 	buf[count-1] = 0;
 	kstrtouint(buf, 0,  &v);
 
-	printk("SPCD: setting tm to %u\n", v);
+	printk("kmaf: setting tm to %u\n", v);
 	do_tm = v;
 	return count;
 }
@@ -314,7 +314,7 @@ static
 int matrix_read(struct seq_file *m, void *v)
 {
 	int i, j;
-	int nt = spcd_get_num_threads();
+	int nt = kmaf_get_num_threads();
 	unsigned long sum = 0, sum_sqr = 0;
 	unsigned long av, va;
 
@@ -384,24 +384,24 @@ static const struct file_operations matrix_ops = {
 };
 
 
-void spcd_mem_init(void)
+void kmaf_mem_init(void)
 {
-	static struct proc_dir_entry *spcd_proc_root = NULL;
+	static struct proc_dir_entry *kmaf_proc_root = NULL;
 	if (!mem)
-		mem = vmalloc(sizeof(struct mem_s) * (1 << spcd_mem_hash_bits));
+		mem = vmalloc(sizeof(struct mem_s) * (1 << kmaf_mem_hash_bits));
 
 	if (!mem)
-		printk("SPCD BUG, no mem");
+		printk("kmaf BUG, no mem");
 	else
-		memset(mem, 0, sizeof(struct mem_s) * (1 << spcd_mem_hash_bits));
+		memset(mem, 0, sizeof(struct mem_s) * (1 << kmaf_mem_hash_bits));
 
 	memset(matrix, 0, sizeof(matrix));
 
-	if (!spcd_proc_root) {
-		spcd_proc_root = proc_mkdir("spcd", NULL);
-		proc_create("pagestats", 0666, spcd_proc_root, &pagestats_ops);
-		proc_create("tm", 0666, spcd_proc_root, &tm_ops);
-		proc_create("matrix", 0666, spcd_proc_root, &matrix_ops);
+	if (!kmaf_proc_root) {
+		kmaf_proc_root = proc_mkdir("kmaf", NULL);
+		proc_create("pagestats", 0666, kmaf_proc_root, &pagestats_ops);
+		proc_create("tm", 0666, kmaf_proc_root, &tm_ops);
+		proc_create("matrix", 0666, kmaf_proc_root, &matrix_ops);
 	}
 }
 
@@ -3839,11 +3839,11 @@ int numa_migrate_prep(struct page *page, struct vm_area_struct *vma,
 	if (page_nid == numa_node_id())
 		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
 
-	if (spcd_get_tid(current->pid) == -1)
+	if (kmaf_get_tid(current->pid) == -1)
 		// return mpol_misplaced(page, vma, addr);
 		return -1;
 	else {
-		int t = spcd_check_dm(page_to_pfn(page));
+		int t = kmaf_check_dm(page_to_pfn(page));
 		// printk("t %d pnid %d\n", t, page_nid);
 		return t == page_nid ? -1 : t;
 	}
@@ -3902,8 +3902,8 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 
 
 	/* Migrate to the requested node */
-	// if (spcd_get_tid(current->pid) > -1) {
-	// 	int new_node = spcd_check_dm(page_nid, addr);
+	// if (kmaf_get_tid(current->pid) > -1) {
+	// 	int new_node = kmaf_check_dm(page_nid, addr);
 	// 	if (new_node != -1 && page_nid != new_node) {
 	// 		migrated = migrate_misplaced_page(page, target_nid);
 	// 		// LIST_HEAD(migratepages);
@@ -3918,9 +3918,9 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	// 	}
 	// } else
 
-	// if (spcd_get_tid(mm->owner->pid) > -1) {
+	// if (kmaf_get_tid(mm->owner->pid) > -1) {
 	// 	printk("%p ", page);
-	// 	new_node = spcd_check_dm(addr);
+	// 	new_node = kmaf_check_dm(addr);
 	// 	// if (new_node>-1) {
 	// 		migrated = migrate_misplaced_page(page, target_nid);
 	// 		printk("mig %d->%d (%d) %d\n", page_nid, target_nid, new_node, migrated);
@@ -4005,7 +4005,7 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		pte_unmap_unlock(pte, ptl);
 		if (target_nid != -1) {
 			// migrated = migrate_misplaced_page(page, target_nid);
-			int tid = spcd_get_tid(current->pid);
+			int tid = kmaf_get_tid(current->pid);
 			if (tid>-1) {
 				printk("pmd migrated %p\n", page);
 			}
@@ -4052,9 +4052,9 @@ int handle_pte_fault(struct mm_struct *mm,
 {
 	pte_t entry;
 	spinlock_t *ptl;
-	int tid = spcd_get_tid(current->pid);
+	int tid = kmaf_get_tid(current->pid);
 	if (tid > -1) {
-		spcd_check_comm(tid, address);
+		kmaf_check_comm(tid, address);
 	}
 
 
