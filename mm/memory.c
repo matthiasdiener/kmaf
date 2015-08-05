@@ -82,7 +82,7 @@ EXPORT_SYMBOL(max_mapnr);
 EXPORT_SYMBOL(mem_map);
 #endif
 
-
+int kmaf_fac = 2;
 int do_tm = 0;
 #include "libmapping/libmapping.h"
 
@@ -227,7 +227,7 @@ int kmaf_check_dm(unsigned long address)
 	}
 	// printk(" max: %d max_old:%d\n", max, max_old);
 
-	if (max > 2*(max_old+1)) {
+	if (max > kmaf_fac*(max_old+1)) {
 		elem->nmig++;
 		return max_node;
 	}
@@ -304,9 +304,31 @@ ssize_t tm_write(struct file *file, const char __user *buffer, size_t count, lof
 }
 
 static
+ssize_t fac_write(struct file *file, const char __user *buffer, size_t count, loff_t *pos)
+{
+	char buf[200];
+	unsigned int v;
+
+	copy_from_user(buf, buffer, count);
+	buf[count-1] = 0;
+	kstrtouint(buf, 0,  &v);
+
+	printk("kmaf: setting local_fac to %u\n", v);
+	kmaf_fac = v;
+	return count;
+}
+
+static
 int tm_read(struct seq_file *m, void *v)
 {
 	seq_printf(m, "TM: %d\n", do_tm);
+	return 0;
+}
+
+static
+int fac_read(struct seq_file *m, void *v)
+{
+	seq_printf(m, "Local fac: %d\n", kmaf_fac);
 	return 0;
 }
 
@@ -353,6 +375,12 @@ int tm_open(struct inode *inode, struct file *file)
 }
 
 static
+int fac_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, fac_read, NULL);
+}
+
+static
 int matrix_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, matrix_read, NULL);
@@ -372,6 +400,15 @@ static const struct file_operations tm_ops = {
 	.read = seq_read,
 	.llseek	= seq_lseek,
 	.write = tm_write,
+	.release = single_release,
+};
+
+static const struct file_operations fac_ops = {
+	.owner = THIS_MODULE,
+	.open = fac_open,
+	.read = seq_read,
+	.llseek	= seq_lseek,
+	.write = fac_write,
 	.release = single_release,
 };
 
@@ -402,6 +439,7 @@ void kmaf_mem_init(void)
 		proc_create("pagestats", 0666, kmaf_proc_root, &pagestats_ops);
 		proc_create("tm", 0666, kmaf_proc_root, &tm_ops);
 		proc_create("matrix", 0666, kmaf_proc_root, &matrix_ops);
+		proc_create("fac", 0666, kmaf_proc_root, &fac_ops);
 	}
 }
 
